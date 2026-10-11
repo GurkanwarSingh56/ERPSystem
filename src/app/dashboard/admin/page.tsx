@@ -22,16 +22,21 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Identity Governance</CardTitle>
-              <Shield className="w-4 h-4 text-red-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">Full Privileges</div>
-              <p className="text-xs text-slate-400 pt-1">Administer faculty, student accounts, and role permissions</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/admin/students" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Student Management
+                </CardTitle>
+                <Users className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Enroll & Manage</div>
+                <p className="text-xs text-slate-400 pt-1">Search, paginate, filter, and administer student rosters</p>
+              </CardContent>
+            </Card>
+          </Link>
+
 
           <Card className="bg-slate-900/80 border-slate-800">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
