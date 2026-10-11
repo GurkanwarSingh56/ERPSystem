@@ -81,10 +81,18 @@ export default function Home() {
             A simple, high-performance and secure web ERP built with Next.js, Supabase, PostgreSQL, and Tailwind CSS.
           </p>
           <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <Button size="lg" className="gap-2 bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/25">
-              Explore ERP System <ArrowRight className="h-4 w-4" />
-            </Button>
+            <Link href="/login">
+              <Button size="lg" className="gap-2 bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/25">
+                Sign In to Portal <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/dashboard">
+              <Button size="lg" variant="outline" className="border-slate-800 hover:bg-slate-900 text-slate-300">
+                Go to Dashboard
+              </Button>
+            </Link>
           </div>
+
         </div>
 
         {/* Status Banner */}
