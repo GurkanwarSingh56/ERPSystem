@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Shield, Users, BookOpen, Settings } from "lucide-react";
+import { Shield, Users, BookOpen, Settings, GraduationCap } from "lucide-react";
 
 export const metadata = {
   title: "Admin Dashboard — College ERP",
@@ -22,7 +22,7 @@ export default async function AdminDashboardPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Link href="/dashboard/admin/students" className="block group">
             <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -32,8 +32,23 @@ export default async function AdminDashboardPage() {
                 <Users className="w-4 h-4 text-indigo-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">Enroll & Manage</div>
+                <div className="text-2xl font-bold text-white">Students</div>
                 <p className="text-xs text-slate-400 pt-1">Search, paginate, filter, and administer student rosters</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/admin/teachers" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Faculty Management
+                </CardTitle>
+                <GraduationCap className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Faculty</div>
+                <p className="text-xs text-slate-400 pt-1">Enroll teachers, department mappings, and subject allocations</p>
               </CardContent>
             </Card>
           </Link>
