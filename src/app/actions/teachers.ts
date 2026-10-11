@@ -328,6 +328,64 @@ export async function assignTeacherSubjectAction(
       return { success: false, error: "Teacher does not belong to your institution." };
     }
 
+    // Verify academic hierarchy: subject belongs to course, semester, and institution
+    const { data: subject, error: subjectError } = await adminSupabase
+      .from("subjects")
+      .select("id, course_id, semester_id, institution_id")
+      .eq("id", input.subjectId)
+      .eq("course_id", input.courseId)
+      .eq("semester_id", input.semesterId)
+      .eq("institution_id", caller.institutionId)
+      .single();
+
+    if (subjectError || !subject) {
+      return {
+        success: false,
+        error: "Invalid subject: Subject does not match the course and semester within your institution.",
+      };
+    }
+
+    // Verify section belongs to course, semester, and institution
+    const { data: section, error: sectionError } = await adminSupabase
+      .from("sections")
+      .select("id, course_id, semester_id, institution_id")
+      .eq("id", input.sectionId)
+      .eq("course_id", input.courseId)
+      .eq("semester_id", input.semesterId)
+      .eq("institution_id", caller.institutionId)
+      .single();
+
+    if (sectionError || !section) {
+      return {
+        success: false,
+        error: "Invalid section: Section does not match the course and semester within your institution.",
+      };
+    }
+
+    // If caller is HOD, verify subject belongs to caller's department
+    if (caller.role === "hod") {
+      const { data: course } = await adminSupabase
+        .from("courses")
+        .select("department_id")
+        .eq("id", input.courseId)
+        .eq("institution_id", caller.institutionId)
+        .single();
+
+      const { data: hodDept } = await adminSupabase
+        .from("departments")
+        .select("id")
+        .eq("hod_id", caller.userId)
+        .eq("institution_id", caller.institutionId)
+        .single();
+
+      if (!course || !hodDept || course.department_id !== hodDept.id) {
+        return {
+          success: false,
+          error: "Access Denied: HOD can only allocate subjects within their own department.",
+        };
+      }
+    }
+
     // Insert allocation record
     const { data: allocation, error: insertError } = await adminSupabase
       .from("teacher_subjects")

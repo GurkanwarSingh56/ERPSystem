@@ -22,7 +22,7 @@ export async function createStudentAction(
   formData: FormData
 ): Promise<StudentActionResponse> {
   try {
-    const caller = await requireRole(["admin"]);
+    const caller = await requireRole(["admin", "principal"]);
 
     const rawData = {
       fullName: formData.get("fullName"),
@@ -50,6 +50,38 @@ export async function createStudentAction(
 
     const input = parseResult.data;
     const adminSupabase = createAdminClient();
+
+    // 0. Verify academic hierarchy and institutional ownership
+    const { data: section, error: sectionError } = await adminSupabase
+      .from("sections")
+      .select("id, course_id, semester_id, institution_id")
+      .eq("id", input.sectionId)
+      .eq("course_id", input.courseId)
+      .eq("semester_id", input.semesterId)
+      .eq("institution_id", caller.institutionId)
+      .single();
+
+    if (sectionError || !section) {
+      return {
+        success: false,
+        error: "Invalid section hierarchy: Section, course, and semester do not match within your institution.",
+      };
+    }
+
+    const { data: course, error: courseError } = await adminSupabase
+      .from("courses")
+      .select("id, department_id, institution_id")
+      .eq("id", input.courseId)
+      .eq("department_id", input.departmentId)
+      .eq("institution_id", caller.institutionId)
+      .single();
+
+    if (courseError || !course) {
+      return {
+        success: false,
+        error: "Invalid course hierarchy: Course does not belong to the selected department within your institution.",
+      };
+    }
 
     // 1. Create Supabase Auth identity
     const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
@@ -219,17 +251,29 @@ export async function setStudentStatusAction(
   action: "deactivate" | "activate" | "drop" | "reinstate"
 ): Promise<StudentActionResponse> {
   try {
-    const caller = await requireRole(["admin"]);
+    const caller = await requireRole(["admin", "principal"]);
     const adminSupabase = createAdminClient();
 
+    // Verify student belongs to caller's institution
+    const { data: student, error: fetchError } = await adminSupabase
+      .from("students")
+      .select("id, institution_id")
+      .eq("id", studentId)
+      .eq("institution_id", caller.institutionId)
+      .single();
+
+    if (fetchError || !student) {
+      return { success: false, error: "Student record not found in this institution." };
+    }
+
     if (action === "deactivate") {
-      await adminSupabase.from("profiles").update({ status: "inactive" }).eq("id", studentId);
+      await adminSupabase.from("profiles").update({ status: "inactive" }).eq("id", studentId).eq("institution_id", caller.institutionId);
     } else if (action === "activate") {
-      await adminSupabase.from("profiles").update({ status: "active" }).eq("id", studentId);
+      await adminSupabase.from("profiles").update({ status: "active" }).eq("id", studentId).eq("institution_id", caller.institutionId);
     } else if (action === "drop") {
-      await adminSupabase.from("students").update({ is_dropped: true }).eq("id", studentId);
+      await adminSupabase.from("students").update({ is_dropped: true }).eq("id", studentId).eq("institution_id", caller.institutionId);
     } else if (action === "reinstate") {
-      await adminSupabase.from("students").update({ is_dropped: false }).eq("id", studentId);
+      await adminSupabase.from("students").update({ is_dropped: false }).eq("id", studentId).eq("institution_id", caller.institutionId);
     }
 
     revalidatePath("/dashboard/admin/students");
