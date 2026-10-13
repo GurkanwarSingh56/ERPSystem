@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { GraduationCap, Calendar, Edit3 } from "lucide-react";
+import Link from "next/link";
 
 export const metadata = {
   title: "Teacher Dashboard — College ERP",
@@ -22,38 +23,50 @@ export default async function TeacherDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Teaching Assignments</CardTitle>
-              <GraduationCap className="w-4 h-4 text-indigo-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">Assigned Classes</div>
-              <p className="text-xs text-slate-400 pt-1">Restricted to your assigned subjects and sections</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/teacher/assignments" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Teaching Assignments
+                </CardTitle>
+                <GraduationCap className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Assigned Classes</div>
+                <p className="text-xs text-slate-400 pt-1">Review your allocated subjects, courses, and section rosters →</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Daily Attendance</CardTitle>
-              <Calendar className="w-4 h-4 text-emerald-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">12 Periods/Day</div>
-              <p className="text-xs text-slate-400 pt-1">Take and correct attendance with audit reason logging</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/teacher/attendance" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-emerald-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Daily Attendance
+                </CardTitle>
+                <Calendar className="w-4 h-4 text-emerald-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">12 Periods/Day</div>
+                <p className="text-xs text-slate-400 pt-1">Period-wise student attendance log and audit tracking →</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Marks Entry</CardTitle>
-              <Edit3 className="w-4 h-4 text-violet-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">Assessment Grades</div>
-              <p className="text-xs text-slate-400 pt-1">Enter internal, midterm, and practical component marks</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/teacher/marks" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-violet-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Marks Entry
+                </CardTitle>
+                <Edit3 className="w-4 h-4 text-violet-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Assessment Grades</div>
+                <p className="text-xs text-slate-400 pt-1">Continuous evaluations, midterms, and trigger-calculated grades →</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </main>
     </div>
