@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -22,38 +23,50 @@ export default async function StudentDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Attendance Percentage</CardTitle>
-              <CheckSquare className="w-4 h-4 text-emerald-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">Confidential Record</div>
-              <p className="text-xs text-slate-400 pt-1">RLS strictly prevents access to peer student records</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/student/attendance" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-emerald-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Attendance Records
+                </CardTitle>
+                <CheckSquare className="w-4 h-4 text-emerald-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Daily Attendance</div>
+                <p className="text-xs text-slate-400 pt-1">View personal period-wise session logs and compliance →</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Fee Status</CardTitle>
-              <DollarSign className="w-4 h-4 text-amber-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">Ledger Receipts</div>
-              <p className="text-xs text-slate-400 pt-1">Review fee dues, paid installments, and receipts</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/student/fees" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-amber-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Fee Status
+                </CardTitle>
+                <DollarSign className="w-4 h-4 text-amber-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Ledger & Receipts</div>
+                <p className="text-xs text-slate-400 pt-1">Review fee dues, paid installments, and counter receipts →</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Curriculum Marks</CardTitle>
-              <Award className="w-4 h-4 text-indigo-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">Grades & Results</div>
-              <p className="text-xs text-slate-400 pt-1">Subject scores calculated via database triggers</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/student/marks" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Curriculum Marks
+                </CardTitle>
+                <Award className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Grades & Results</div>
+                <p className="text-xs text-slate-400 pt-1">Continuous assessments, subject totals, and grading scale →</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </main>
     </div>
