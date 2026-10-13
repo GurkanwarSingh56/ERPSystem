@@ -11,6 +11,7 @@ export function DashboardHeader({ user }: { user: AuthContextUser }) {
     hod: "secondary",
     teacher: "default",
     student: "secondary",
+    cashier: "success",
   };
 
   return (
