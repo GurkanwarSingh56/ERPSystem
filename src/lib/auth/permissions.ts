@@ -26,6 +26,10 @@ export const ROUTE_PERMISSIONS: readonly RouteRule[] = [
     prefix: "/dashboard/student",
     allowedRoles: ["student"],
   },
+  {
+    prefix: "/dashboard/cashier",
+    allowedRoles: ["cashier", "admin"],
+  },
 ] as const;
 
 export function getAllowedRolesForPath(pathname: string): readonly UserRole[] | null {
@@ -58,6 +62,8 @@ export function getRoleHomeDashboard(role: UserRole): string {
       return "/dashboard/teacher";
     case "student":
       return "/dashboard/student";
+    case "cashier":
+      return "/dashboard/cashier";
     default:
       return "/login";
   }
