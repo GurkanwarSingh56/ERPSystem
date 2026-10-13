@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "principal" | "hod" | "teacher" | "student";
+export type UserRole = "admin" | "principal" | "hod" | "teacher" | "student" | "cashier";
 
 export type UserStatus = "active" | "inactive" | "suspended";
 
@@ -30,6 +30,7 @@ export const ALL_ROLES: readonly UserRole[] = [
   "hod",
   "teacher",
   "student",
+  "cashier",
 ] as const;
 
 export function isValidRole(role: unknown): role is UserRole {
