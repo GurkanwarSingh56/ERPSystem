@@ -7,26 +7,21 @@
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
 
-function loadEnv(): Record<string, string> {
-  const env: Record<string, string> = {};
-  if (!fs.existsSync(".env.local")) return env;
-  const lines = fs.readFileSync(".env.local", "utf8").split(/\r?\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const match = trimmed.match(/^([^=]+)=(.*)$/);
-    if (match) env[match[1].trim()] = match[2].trim().replace(/^['"](.*)['"]$/, "$1");
-  }
-  return env;
-}
+// Safety Shield: Default strictly to local disposable Supabase
+const LOCAL_DEFAULT_URL = "http://127.0.0.1:54321";
+const LOCAL_DEFAULT_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+const LOCAL_DEFAULT_SERVICE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
 
-const envConfig = loadEnv();
-const supabaseUrl = envConfig.NEXT_PUBLIC_SUPABASE_URL;
-const publishableKey = envConfig.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || envConfig.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const serviceKey = envConfig.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.TEST_SUPABASE_URL || LOCAL_DEFAULT_URL;
+const publishableKey = process.env.TEST_SUPABASE_ANON_KEY || LOCAL_DEFAULT_ANON_KEY;
+const serviceKey = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY || LOCAL_DEFAULT_SERVICE_KEY;
 
-if (!supabaseUrl || !publishableKey || !serviceKey) {
-  console.error("Missing required environment variables in .env.local");
+// Non-negotiable safety guard: Halt immediately if connected to production or non-local
+if (supabaseUrl.includes("ocqawmwlpexuvnsypobb") || !supabaseUrl.includes("127.0.0.1")) {
+  console.error("SAFETY SHIELD TRIGGERED: Remote production execution is prohibited!");
+  console.error("Tests must run strictly against local disposable Supabase at http://127.0.0.1:54321");
   process.exit(1);
 }
 
@@ -43,7 +38,7 @@ const anonClient = createClient(supabaseUrl, publishableKey, {
 async function runSecuritySuite() {
   console.log("================================================================================");
   console.log("PHASE 3 SECURITY & RBAC INTEGRATION TEST SUITE");
-  console.log("Target Database: " + supabaseUrl);
+  console.log("Target Database: " + supabaseUrl + " (DISPOSABLE LOCAL STACK)");
   console.log("================================================================================\n");
 
   let passed = 0;
