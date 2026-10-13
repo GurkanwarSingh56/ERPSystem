@@ -34,7 +34,7 @@ export async function getTeachers(filters: TeacherFilters = {}): Promise<Paginat
         status,
         avatar_url
       ),
-      departments:department_id (
+      departments (
         id,
         name,
         code
@@ -64,7 +64,14 @@ export async function getTeachers(filters: TeacherFilters = {}): Promise<Paginat
   const { data, count, error } = await query;
 
   if (error) {
-    throw new Error(`Failed to query teachers: ${error.message}`);
+    console.error("Failed to query teachers:", error);
+    return {
+      data: [],
+      total: 0,
+      page,
+      pageSize,
+      totalPages: 0,
+    };
   }
 
   const total = count || 0;
@@ -104,7 +111,7 @@ export async function getTeacherById(teacherId: string): Promise<TeacherListItem
         status,
         avatar_url
       ),
-      departments:department_id (
+      departments (
         id,
         name,
         code
@@ -118,22 +125,13 @@ export async function getTeacherById(teacherId: string): Promise<TeacherListItem
         subject_id,
         section_id,
         created_at,
-        subjects:subject_id (
+        subjects (
           id,
           name,
           code,
           type
         ),
-        courses:course_id (
-          id,
-          name,
-          code
-        ),
-        semesters:semester_id (
-          id,
-          semester_number
-        ),
-        sections:section_id (
+        sections (
           id,
           name
         )
