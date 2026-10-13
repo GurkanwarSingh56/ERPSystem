@@ -209,7 +209,8 @@ export async function updateTeacherAction(
         phone: phone,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", teacherId);
+      .eq("id", teacherId)
+      .eq("institution_id", caller.institutionId);
 
     if (profileUpdateError) {
       return { success: false, error: `Profile update failed: ${profileUpdateError.message}` };
@@ -266,7 +267,8 @@ export async function setTeacherStatusAction(
     const { error: updateError } = await adminSupabase
       .from("profiles")
       .update({ status: newStatus, updated_at: new Date().toISOString() })
-      .eq("id", teacherId);
+      .eq("id", teacherId)
+      .eq("institution_id", caller.institutionId);
 
     if (updateError) {
       return { success: false, error: `Status update failed: ${updateError.message}` };
