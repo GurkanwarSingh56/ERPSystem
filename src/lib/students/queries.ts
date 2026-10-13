@@ -30,31 +30,13 @@ export async function getStudents(filters: StudentFilters = {}): Promise<Paginat
       is_dropped,
       created_at,
       updated_at,
-      profiles:id (
+      profiles!inner (
         id,
         email,
         full_name,
         phone,
         status,
         avatar_url
-      ),
-      departments:department_id (
-        id,
-        name,
-        code
-      ),
-      courses:course_id (
-        id,
-        name,
-        code
-      ),
-      semesters:semester_id (
-        id,
-        semester_number
-      ),
-      sections:section_id (
-        id,
-        name
       )
     `, { count: "exact" })
     .eq("institution_id", user.institutionId);
@@ -98,14 +80,58 @@ export async function getStudents(filters: StudentFilters = {}): Promise<Paginat
   const { data, count, error } = await query;
 
   if (error) {
-    throw new Error(`Failed to query students: ${error.message}`);
+    console.error("Failed to query students:", error);
+    return {
+      data: [],
+      total: 0,
+      page,
+      pageSize,
+      totalPages: 0,
+    };
+  }
+
+  const rawStudents = (data || []) as any[];
+
+  // Hydrate academic entities if students exist
+  if (rawStudents.length > 0) {
+    const deptIds = [...new Set(rawStudents.map((s) => s.department_id).filter(Boolean))];
+    const courseIds = [...new Set(rawStudents.map((s) => s.course_id).filter(Boolean))];
+    const semIds = [...new Set(rawStudents.map((s) => s.semester_id).filter(Boolean))];
+    const secIds = [...new Set(rawStudents.map((s) => s.section_id).filter(Boolean))];
+
+    const [deptsRes, coursesRes, semsRes, secsRes] = await Promise.all([
+      deptIds.length > 0
+        ? supabase.from("departments").select("id, name, code").in("id", deptIds)
+        : Promise.resolve({ data: [] }),
+      courseIds.length > 0
+        ? supabase.from("courses").select("id, name, code").in("id", courseIds)
+        : Promise.resolve({ data: [] }),
+      semIds.length > 0
+        ? supabase.from("semesters").select("id, semester_number").in("id", semIds)
+        : Promise.resolve({ data: [] }),
+      secIds.length > 0
+        ? supabase.from("sections").select("id, name").in("id", secIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const deptMap = new Map((deptsRes.data || []).map((d: any) => [d.id, d]));
+    const courseMap = new Map((coursesRes.data || []).map((c: any) => [c.id, c]));
+    const semMap = new Map((semsRes.data || []).map((s: any) => [s.id, s]));
+    const secMap = new Map((secsRes.data || []).map((sec: any) => [sec.id, sec]));
+
+    for (const student of rawStudents) {
+      student.departments = deptMap.get(student.department_id) || undefined;
+      student.courses = courseMap.get(student.course_id) || undefined;
+      student.semesters = semMap.get(student.semester_id) || undefined;
+      student.sections = secMap.get(student.section_id) || undefined;
+    }
   }
 
   const total = count || 0;
   const totalPages = Math.ceil(total / pageSize);
 
   return {
-    data: (data as unknown as StudentListItem[]) || [],
+    data: rawStudents as StudentListItem[],
     total,
     page,
     pageSize,
@@ -134,31 +160,13 @@ export async function getStudentById(studentId: string): Promise<StudentListItem
       is_dropped,
       created_at,
       updated_at,
-      profiles:id (
+      profiles!inner (
         id,
         email,
         full_name,
         phone,
         status,
         avatar_url
-      ),
-      departments:department_id (
-        id,
-        name,
-        code
-      ),
-      courses:course_id (
-        id,
-        name,
-        code
-      ),
-      semesters:semester_id (
-        id,
-        semester_number
-      ),
-      sections:section_id (
-        id,
-        name
       )
     `)
     .eq("id", studentId)
@@ -169,5 +177,18 @@ export async function getStudentById(studentId: string): Promise<StudentListItem
     return null;
   }
 
-  return data as unknown as StudentListItem;
+  const student = data as any;
+  const [deptRes, courseRes, semRes, secRes] = await Promise.all([
+    supabase.from("departments").select("id, name, code").eq("id", student.department_id).maybeSingle(),
+    supabase.from("courses").select("id, name, code").eq("id", student.course_id).maybeSingle(),
+    supabase.from("semesters").select("id, semester_number").eq("id", student.semester_id).maybeSingle(),
+    supabase.from("sections").select("id, name").eq("id", student.section_id).maybeSingle(),
+  ]);
+
+  student.departments = deptRes.data || undefined;
+  student.courses = courseRes.data || undefined;
+  student.semesters = semRes.data || undefined;
+  student.sections = secRes.data || undefined;
+
+  return student as StudentListItem;
 }
