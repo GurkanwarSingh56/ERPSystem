@@ -34,15 +34,35 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Securely refresh session token if expired
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const pathname = request.nextUrl.pathname;
+  const isDashboardRoute = pathname.startsWith("/dashboard");
+  const isLoginRoute = pathname === "/login";
+
+  // For routes that do not require auth inspection or session state checks, return immediately
+  if (!isDashboardRoute && !isLoginRoute) {
+    return supabaseResponse;
+  }
+
+  // Securely refresh session token if expired
+  let user = null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error) {
+      user = data.user;
+    }
+  } catch (err) {
+    console.warn("[proxy] supabase.auth.getUser error:", err instanceof Error ? err.message : err);
+    // If Supabase is unreachable on dashboard routes, redirect to login with connection error
+    if (isDashboardRoute) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("error", "auth_service_unavailable");
+      return NextResponse.redirect(loginUrl);
+    }
+    return supabaseResponse;
+  }
 
   // 1. Unauthenticated route protection for /dashboard/*
-  if (pathname.startsWith("/dashboard")) {
+  if (isDashboardRoute) {
     if (!user) {
       const loginUrl = new URL("/login", request.url);
       // Safely preserve intended redirect path (preventing open redirects)

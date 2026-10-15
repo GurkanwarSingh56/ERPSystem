@@ -67,6 +67,21 @@ export default async function TeacherDashboardPage() {
               </CardContent>
             </Card>
           </Link>
+
+          <Link href="/dashboard/teacher/timetable" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Class Schedule
+                </CardTitle>
+                <Calendar className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">My Timetable</div>
+                <p className="text-xs text-slate-400 pt-1">View published weekly teaching roster and current period →</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </main>
     </div>

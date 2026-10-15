@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Shield, Users, BookOpen, Settings, GraduationCap, CreditCard } from "lucide-react";
+import { Shield, Users, BookOpen, Settings, GraduationCap, CreditCard, Calendar, Database } from "lucide-react";
 
 export const metadata = {
   title: "Admin Dashboard — College ERP",
@@ -80,6 +80,36 @@ export default async function AdminDashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-white">Structure & Roster</div>
                 <p className="text-xs text-slate-400 pt-1">Departments, courses, curriculum, and semester cohorts →</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/admin/timetable" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Timetable Generator
+                </CardTitle>
+                <Calendar className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Smart Timetable</div>
+                <p className="text-xs text-slate-400 pt-1">Generate, validate, publish schedules & resolve conflicts →</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/admin/data-import" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Data Management
+                </CardTitle>
+                <Database className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">CSV Bulk Import</div>
+                <p className="text-xs text-slate-400 pt-1">Onboard departments, courses, teachers, students & assignments →</p>
               </CardContent>
             </Card>
           </Link>

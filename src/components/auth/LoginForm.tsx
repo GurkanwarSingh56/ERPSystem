@@ -39,6 +39,13 @@ export function LoginForm() {
             </div>
           )}
 
+          {errorParam === "auth_service_unavailable" && (
+            <div className="p-3 text-xs bg-amber-950/60 border border-amber-800/60 text-amber-300 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>Authentication service was temporarily unreachable. Please sign in again.</span>
+            </div>
+          )}
+
           {messageParam === "password_updated" && (
             <div className="p-3 text-xs bg-emerald-950/60 border border-emerald-800/60 text-emerald-300 rounded-lg flex items-center gap-2">
               <span>Your password has been successfully updated. Please sign in with your new password.</span>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { CheckSquare, DollarSign, Award, BookOpen } from "lucide-react";
+import { CheckSquare, DollarSign, Award, BookOpen, Calendar } from "lucide-react";
 
 export const metadata = {
   title: "Student Dashboard — College ERP",
@@ -64,6 +64,21 @@ export default async function StudentDashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-white">Grades & Results</div>
                 <p className="text-xs text-slate-400 pt-1">Continuous assessments, subject totals, and grading scale →</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/student/timetable" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-sky-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Class Timetable
+                </CardTitle>
+                <Calendar className="w-4 h-4 text-sky-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Weekly Schedule</div>
+                <p className="text-xs text-slate-400 pt-1">View published section timetable, timings, and rooms →</p>
               </CardContent>
             </Card>
           </Link>

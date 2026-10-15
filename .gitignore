@@ -40,3 +40,8 @@ supabase/.temp/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# backups and local dumps
+backup/
+supabase/.branches/
+scripts/debug-dept-schedule.ts

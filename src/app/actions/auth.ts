@@ -39,12 +39,46 @@ export async function signInAction(prevState: unknown, formData: FormData): Prom
   const { email, password, redirectTo } = parseResult.data;
   const supabase = await createClient();
 
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  let authData: any = null;
+  let authError: any = null;
 
-  if (authError || !authData.user) {
+  try {
+    const res = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    authData = res.data;
+    authError = res.error;
+  } catch (err: any) {
+    console.error("[signInAction] Connection/Network failure during signInWithPassword:", {
+      message: err?.message,
+      name: err?.name,
+      status: err?.status,
+    });
+    return {
+      success: false,
+      error: "Authentication service is currently unreachable. Please check your local connection or try again shortly.",
+    };
+  }
+
+  if (authError || !authData?.user) {
+    // Check if error is network / retryable fetch error
+    if (
+      authError?.name === "AuthRetryableFetchError" ||
+      authError?.status === 0 ||
+      authError?.message?.includes("fetch failed")
+    ) {
+      console.error("[signInAction] Supabase Auth connection failed:", {
+        message: authError.message,
+        name: authError.name,
+        status: authError.status,
+      });
+      return {
+        success: false,
+        error: "Cannot connect to authentication service. Please ensure the local database is running.",
+      };
+    }
+
     return {
       success: false,
       error: "Invalid email or password. Please check your credentials.",
