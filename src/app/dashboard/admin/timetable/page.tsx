@@ -204,6 +204,38 @@ export default async function AdminTimetablePage({ searchParams }: TimetablePage
     }
   }
 
+  // Phase 16: If section has no entries and is a demo fallback section, supply deterministic in-memory demo entries
+  let isDemoFallback = false;
+  if (selectedSectionId) {
+    const selectedSec = sectionList.find((s) => s.id === selectedSectionId);
+    if (selectedSec && sectionEntries.length === 0) {
+      const { isDemoFallbackSection, generateDeterministicDemoEntries } = await import(
+        "@/lib/timetable/sectionDemoFallback"
+      );
+      if (isDemoFallbackSection(selectedSec)) {
+        const demoTeachers = teachers.map((t: any) => ({
+          id: t.id,
+          employee_id: t.employee_id,
+          full_name: t.profiles?.full_name || t.employee_id,
+        }));
+        const demoRooms = rooms.map((r: any) => ({
+          id: r.id,
+          room_number: r.room_number,
+          name: r.name,
+          type: r.type,
+        }));
+
+        sectionEntries = generateDeterministicDemoEntries({
+          section: selectedSec,
+          teachers: demoTeachers,
+          rooms: demoRooms,
+          academicYear: selectedYear,
+        });
+        isDemoFallback = true;
+      }
+    }
+  }
+
   // 4. Check readiness criteria for selected section
   let readiness = {
     hasSlots: slots.length > 0,
@@ -308,6 +340,7 @@ export default async function AdminTimetablePage({ searchParams }: TimetablePage
           selectedSectionId={selectedSectionId}
           selectedAcademicYear={selectedYear}
           readiness={readiness}
+          isDemoFallback={isDemoFallback}
         />
       </main>
     </div>

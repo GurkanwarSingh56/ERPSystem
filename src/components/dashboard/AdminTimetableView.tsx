@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo } from "react";
 import {
   autoGenerateTimetableAction,
   generateDepartmentTimetableAction,
+  generateDemoTimetableAction,
   publishTimetableAction,
   createTimetableRevisionAction,
   upsertRoomResourceAction,
@@ -43,9 +44,11 @@ import {
   Check,
   X,
   ExternalLink,
+  FlaskConical,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ImportTimetableWizard from "@/components/dashboard/ImportTimetableWizard";
 
 interface SectionItem {
   id: string;
@@ -85,6 +88,7 @@ interface AdminTimetableViewProps {
     sectionSubjects?: any[];
     sectionAssignments?: any[];
   };
+  isDemoFallback?: boolean;
 }
 
 export function AdminTimetableView({
@@ -102,6 +106,7 @@ export function AdminTimetableView({
   selectedSectionId,
   selectedAcademicYear,
   readiness,
+  isDemoFallback = false,
 }: AdminTimetableViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -111,6 +116,14 @@ export function AdminTimetableView({
   // Department-wide generation states
   const [selectedDeptId, setSelectedDeptId] = useState<string>(departments[0]?.id || "");
   const [deptGenResult, setDeptGenResult] = useState<any>(null);
+
+  // Phase 14.4.3: In-Memory Demo Timetable State
+  const [demoTimetableData, setDemoTimetableData] = useState<any | null>(null);
+  const [isDemoActive, setIsDemoActive] = useState<boolean>(false);
+  const [selectedDemoSectionId, setSelectedDemoSectionId] = useState<string>("demo-sec-cse-3a");
+
+  // Phase 16: Local section demo fallback state
+  const [fallbackDemoEntries, setFallbackDemoEntries] = useState<any[] | null>(null);
 
   // Active Main Tab: Generator / 4 Views / Resources & Mapping
   const [activeMainTab, setActiveMainTab] = useState<"generator" | "views" | "resources">("generator");
@@ -146,45 +159,94 @@ export function AdminTimetableView({
   const [assignFacultyId, setAssignFacultyId] = useState("");
   const [assignSubjectId, setAssignSubjectId] = useState("");
 
-  const labs = useMemo(() => rooms.filter((r) => r.type === "lab"), [rooms]);
-  const classrooms = useMemo(() => rooms.filter((r) => r.type !== "lab"), [rooms]);
+  // Effective collections (switches between real database records and synthetic demo fixture)
+  const effectiveRooms = useMemo(() => {
+    return isDemoActive && demoTimetableData ? demoTimetableData.rooms : rooms;
+  }, [isDemoActive, demoTimetableData, rooms]);
+
+  const effectiveTeachers = useMemo(() => {
+    return isDemoActive && demoTimetableData ? demoTimetableData.teachers : teachers;
+  }, [isDemoActive, demoTimetableData, teachers]);
+
+  const effectiveSections = useMemo(() => {
+    return isDemoActive && demoTimetableData ? demoTimetableData.sections : sections;
+  }, [isDemoActive, demoTimetableData, sections]);
+
+  const effectiveEntries = useMemo(() => {
+    if (isDemoActive && demoTimetableData) {
+      return demoTimetableData.entries;
+    }
+    const combined = [...allYearEntries];
+    const sourceEntries = fallbackDemoEntries && fallbackDemoEntries.length > 0 ? fallbackDemoEntries : entries;
+    if (sourceEntries && sourceEntries.length > 0 && sourceEntries[0]?.is_demo) {
+      sourceEntries.forEach((de: any) => {
+        if (!combined.some((e: any) => e.id === de.id)) {
+          combined.push(de);
+        }
+      });
+    }
+    return combined;
+  }, [isDemoActive, demoTimetableData, allYearEntries, fallbackDemoEntries, entries]);
+
+  const effectiveSlots = useMemo(() => {
+    return isDemoActive && demoTimetableData ? demoTimetableData.slots : slots;
+  }, [isDemoActive, demoTimetableData, slots]);
+
+  const labs = useMemo(() => effectiveRooms.filter((r: any) => r.type === "lab"), [effectiveRooms]);
+  const classrooms = useMemo(() => effectiveRooms.filter((r: any) => r.type !== "lab"), [effectiveRooms]);
 
   // Filter sections by selected course/semester if filters are active
   const filteredSections = useMemo(() => {
-    return sections.filter((s) => {
+    return effectiveSections.filter((s: any) => {
       if (selectedCourseFilter && s.course_id !== selectedCourseFilter) return false;
       if (selectedSemesterFilter && s.semester_id !== selectedSemesterFilter) return false;
       return true;
     });
-  }, [sections, selectedCourseFilter, selectedSemesterFilter]);
+  }, [effectiveSections, selectedCourseFilter, selectedSemesterFilter]);
 
   const activeSection = useMemo(() => {
+    if (isDemoActive) {
+      return effectiveSections.find((s: any) => s.id === selectedDemoSectionId) || effectiveSections[0];
+    }
     return sections.find((s) => s.id === selectedSectionId);
-  }, [sections, selectedSectionId]);
+  }, [isDemoActive, effectiveSections, selectedDemoSectionId, sections, selectedSectionId]);
 
   // Timetable grid index: day_slot -> entry
   const sectionGridMap = useMemo(() => {
-    const map = new Map<string, TimetableEntry>();
-    entries.forEach((e) => {
+    const map = new Map<string, any>();
+    const srcEntries = isDemoActive && demoTimetableData
+      ? demoTimetableData.entries.filter((e: any) => e.section_id === activeSection?.id)
+      : fallbackDemoEntries && fallbackDemoEntries.length > 0
+        ? fallbackDemoEntries
+        : entries;
+
+    srcEntries.forEach((e: any) => {
       map.set(`${e.day_of_week}_${e.slot_number}`, e);
     });
     return map;
-  }, [entries]);
+  }, [isDemoActive, demoTimetableData, activeSection, entries, fallbackDemoEntries]);
 
   // Auto-set default selections for views
   useMemo(() => {
-    if (!selectedLabId && labs.length > 0) setSelectedLabId(labs[0].id);
-    if (!selectedRoomId && classrooms.length > 0) setSelectedRoomId(classrooms[0].id);
-    if (!selectedTeacherId && teachers.length > 0) setSelectedTeacherId(teachers[0].id);
-  }, [labs, classrooms, teachers, selectedLabId, selectedRoomId, selectedTeacherId]);
+    if (labs.length > 0 && (!selectedLabId || !labs.some((l: any) => l.id === selectedLabId))) {
+      setSelectedLabId(labs[0].id);
+    }
+    if (classrooms.length > 0 && (!selectedRoomId || !classrooms.some((r: any) => r.id === selectedRoomId))) {
+      setSelectedRoomId(classrooms[0].id);
+    }
+    if (effectiveTeachers.length > 0 && (!selectedTeacherId || !effectiveTeachers.some((t: any) => t.id === selectedTeacherId))) {
+      setSelectedTeacherId(effectiveTeachers[0].id);
+    }
+  }, [labs, classrooms, effectiveTeachers, selectedLabId, selectedRoomId, selectedTeacherId]);
 
   // Build grid map for active 4-view selection
   const viewGridMap = useMemo(() => {
     const map = new Map<string, any[]>();
-    allYearEntries.forEach((entry) => {
+    effectiveEntries.forEach((entry: any) => {
       let matches = false;
       if (viewMode === "class" && activeSection) {
-        matches = entry.timetables?.section_id === activeSection.id;
+        const secId = entry.timetables?.section_id || entry.section_id;
+        matches = secId === activeSection.id;
       } else if (viewMode === "lab") {
         matches = entry.room_id === selectedLabId || entry.rooms?.id === selectedLabId;
       } else if (viewMode === "room") {
@@ -201,19 +263,41 @@ export function AdminTimetableView({
       }
     });
     return map;
-  }, [allYearEntries, viewMode, activeSection, selectedLabId, selectedRoomId, selectedTeacherId]);
+  }, [effectiveEntries, viewMode, activeSection, selectedLabId, selectedRoomId, selectedTeacherId]);
 
   // Compute selected teacher's assigned weekly load
   const selectedTeacherLoad = useMemo(() => {
     if (!selectedTeacherId) return 0;
-    return allYearEntries
-      .filter((e) => e.teacher_id === selectedTeacherId)
-      .reduce((acc, curr) => acc + (curr.subjects?.weekly_hours || 1), 0);
-  }, [allYearEntries, selectedTeacherId]);
+    return effectiveEntries
+      .filter((e: any) => e.teacher_id === selectedTeacherId)
+      .reduce((acc: number, curr: any) => acc + (curr.subjects?.weekly_hours || 1), 0);
+  }, [effectiveEntries, selectedTeacherId]);
 
-  // ---------------------------------------------------------------------------
-  // Action Handlers
-  // ---------------------------------------------------------------------------
+  const handleGenerateDemo = () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    startTransition(async () => {
+      const res = await generateDemoTimetableAction();
+      if (!res.success) {
+        setErrorMsg(res.error || "Synthetic demo timetable generation failed.");
+      } else if (res.data) {
+        setDemoTimetableData(res.data);
+        setIsDemoActive(true);
+        setActiveMainTab("views");
+        setSuccessMsg(
+          `DEMO TIMETABLE GENERATED! Solver: ${res.data.solverStatus} (${res.data.wallTimeSeconds.toFixed(2)}s). Scheduled ${res.data.totalPeriodsScheduled} periods across 8 sections with ZERO database changes.`
+        );
+      }
+    });
+  };
+
+  const handleClearDemo = () => {
+    setDemoTimetableData(null);
+    setIsDemoActive(false);
+    setSuccessMsg("Demo mode deactivated. Switched back to official college database records.");
+  };
+
   const handleGenerateDepartment = () => {
     if (!selectedDeptId) {
       setErrorMsg("Please select a department to generate timetables for.");
@@ -257,10 +341,17 @@ export function AdminTimetableView({
       if (!res.success) {
         setErrorMsg(res.error || "Generation failed.");
       } else {
-        setSuccessMsg(
-          `Timetable successfully generated with ${res.data?.generatedCount} class periods scheduled!`
-        );
-        router.refresh();
+        if ((res.data as any)?.isDemoFallback) {
+          setFallbackDemoEntries((res.data as any).demoEntries);
+          setSuccessMsg(
+            (res.data as any).notice || "Generated deterministic Demo Timetable preview (DEMO — NOT OFFICIAL)."
+          );
+        } else {
+          setSuccessMsg(
+            `Timetable successfully generated with ${res.data?.generatedCount} class periods scheduled!`
+          );
+          router.refresh();
+        }
       }
     });
   };
@@ -361,10 +452,10 @@ export function AdminTimetableView({
 
   // CSV Export for Active View
   const handleExportViewCsv = () => {
-    const headers = ["Day", ...slots.map((s) => `${s.label} (${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)})`)];
+    const headers = ["Day", ...effectiveSlots.map((s: any) => `${s.label} (${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)})`)];
     const rows = workingDays.map((day) => {
       const cols = [day.toUpperCase()];
-      slots.forEach((s) => {
+      effectiveSlots.forEach((s: any) => {
         if (s.is_break) {
           cols.push("BREAK");
         } else {
@@ -387,7 +478,7 @@ export function AdminTimetableView({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `timetable_${viewMode}_${selectedAcademicYear}.csv`;
+    link.download = `timetable_${viewMode}_${isDemoActive ? "demo" : selectedAcademicYear}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -436,26 +527,88 @@ export function AdminTimetableView({
           </div>
         </div>
 
-        {/* ACADEMIC YEAR SELECTOR */}
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-slate-400">Academic Year:</span>
-          <select
-            value={selectedAcademicYear}
-            onChange={(e) => {
-              const url = new URL(window.location.href);
-              url.searchParams.set("year", e.target.value);
-              router.push(url.pathname + url.search);
-            }}
-            className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 font-mono text-xs focus:ring-1 focus:ring-indigo-500"
-          >
-            {academicYears.map((yr) => (
-              <option key={yr} value={yr}>
-                {yr}
-              </option>
-            ))}
-          </select>
+        {/* DEMO BUTTON & ACADEMIC YEAR SELECTOR */}
+        <div className="flex items-center gap-3 text-xs">
+          {isDemoActive ? (
+            <div className="flex items-center gap-2">
+              <Badge className="bg-purple-950/80 border border-purple-500 text-purple-300 font-mono text-xs px-2.5 py-1 flex items-center gap-1.5 shadow-sm">
+                <FlaskConical className="w-3.5 h-3.5 text-purple-400" />
+                DEMO MODE ACTIVE
+              </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleClearDemo}
+                className="border-purple-800 bg-purple-950/40 text-purple-200 hover:bg-purple-900/60 text-xs h-7 px-2.5"
+              >
+                Exit Demo
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleGenerateDemo}
+              disabled={isPending}
+              className="bg-purple-700 hover:bg-purple-600 text-white font-medium text-xs h-7 px-3 shadow-md shadow-purple-950 flex items-center gap-1.5"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Generating Demo...
+                </>
+              ) : (
+                <>
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  Generate Demo Timetable
+                </>
+              )}
+            </Button>
+          )}
+
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-slate-400">Academic Year:</span>
+            <select
+              value={selectedAcademicYear}
+              onChange={(e) => {
+                const url = new URL(window.location.href);
+                url.searchParams.set("year", e.target.value);
+                router.push(url.pathname + url.search);
+              }}
+              className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 font-mono text-xs focus:ring-1 focus:ring-indigo-500"
+            >
+              {academicYears.map((yr) => (
+                <option key={yr} value={yr}>
+                  {yr}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
+
+      <ImportTimetableWizard />
+
+      {/* DEMO MODE ISOLATION NOTICE */}
+      {isDemoActive && demoTimetableData && (
+        <div className="p-4 bg-purple-950/40 border border-purple-800/80 rounded-xl space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-purple-200 font-bold text-xs font-mono">
+              <FlaskConical className="w-4 h-4 text-purple-400 flex-shrink-0" />
+              <span>SYNTHETIC DEMO TIMETABLE — SOLVER STATUS: {demoTimetableData.solverStatus}</span>
+              <span className="text-purple-400 font-normal">({demoTimetableData.wallTimeSeconds.toFixed(2)}s solve time)</span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-purple-300">
+              <span>{demoTimetableData.totalPeriodsScheduled} Periods Scheduled Across 8 Cohorts</span>
+              <Badge variant="outline" className="border-purple-600 text-purple-300 text-[10px]">
+                READ-ONLY IN-MEMORY
+              </Badge>
+            </div>
+          </div>
+          <p className="text-slate-300 text-xs leading-relaxed">
+            This schedule was generated with Google OR-Tools CP-SAT using an isolated synthetic test institution (2 departments, 4 semesters, 8 sections, 8 faculty, 4 classrooms, 2 labs). Zero database modifications have occurred; real college records, attendance, marks, and fees are completely untouched.
+          </p>
+        </div>
+      )}
 
       {/* FEEDBACK BANNERS */}
       {errorMsg && (
@@ -603,7 +756,7 @@ export function AdminTimetableView({
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {filteredSections.map((sec) => {
+                  {filteredSections.map((sec: any) => {
                     const isSelected = sec.id === selectedSectionId;
                     return (
                       <button
@@ -724,9 +877,29 @@ export function AdminTimetableView({
                   Weekly Class Grid ({activeSection.name})
                 </CardTitle>
                 <div className="text-[11px] text-slate-500">
-                  {entries.length} Scheduled Periods
+                  {(fallbackDemoEntries || entries).length} Scheduled Periods
+                  {(isDemoFallback || (fallbackDemoEntries && fallbackDemoEntries.length > 0) || entries.some((e: any) => e.is_demo)) && (
+                    <span className="ml-2 text-amber-400 font-medium font-mono text-[10px] bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-800/40">DEMO PREVIEW</span>
+                  )}
                 </div>
               </CardHeader>
+
+              {/* DEMO FALLBACK NOTICE */}
+              {(isDemoFallback || (fallbackDemoEntries && fallbackDemoEntries.length > 0) || entries.some((e: any) => e.is_demo)) && (
+                <div className="mx-4 my-3 p-3 bg-amber-950/40 border border-amber-800/80 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-600/40 text-[10px]">
+                      DEMO — NOT OFFICIAL
+                    </span>
+                    <span className="text-amber-200">
+                      Synthetic demo schedule (in-memory preview). Real faculty allocations are incomplete or currently infeasible.
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-amber-400/80 font-mono shrink-0">
+                    Deterministic In-Memory Preview
+                  </span>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
@@ -841,6 +1014,23 @@ export function AdminTimetableView({
 
             <div className="flex items-center gap-3">
               {/* Context Selector based on active view mode */}
+              {viewMode === "class" && isDemoActive && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-slate-400">Select Section:</span>
+                  <select
+                    value={selectedDemoSectionId}
+                    onChange={(e) => setSelectedDemoSectionId(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs"
+                  >
+                    {effectiveSections.map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.course_code || s.course_name} — {s.name} (S{s.semester_number})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {viewMode === "lab" && (
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-slate-400">Select Lab:</span>
@@ -849,7 +1039,7 @@ export function AdminTimetableView({
                     onChange={(e) => setSelectedLabId(e.target.value)}
                     className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs"
                   >
-                    {labs.map((l) => (
+                    {labs.map((l: any) => (
                       <option key={l.id} value={l.id}>
                         {l.room_number} — {l.name}
                       </option>
@@ -866,7 +1056,7 @@ export function AdminTimetableView({
                     onChange={(e) => setSelectedRoomId(e.target.value)}
                     className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs"
                   >
-                    {classrooms.map((r) => (
+                    {classrooms.map((r: any) => (
                       <option key={r.id} value={r.id}>
                         {r.room_number} — {r.name}
                       </option>
@@ -883,9 +1073,9 @@ export function AdminTimetableView({
                     onChange={(e) => setSelectedTeacherId(e.target.value)}
                     className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs"
                   >
-                    {teachers.map((t) => (
+                    {effectiveTeachers.map((t: any) => (
                       <option key={t.id} value={t.id}>
-                        {t.profiles?.full_name} ({t.employee_id})
+                        {t.profiles?.full_name || t.name} {t.employee_id ? `(${t.employee_id})` : ""}
                       </option>
                     ))}
                   </select>
@@ -908,9 +1098,9 @@ export function AdminTimetableView({
           <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs">
             <div className="font-semibold text-slate-200 uppercase font-mono tracking-wide">
               {viewMode === "class" && `CLASS WISE: ${activeSection ? `${activeSection.course_name} (${activeSection.name})` : "Select a section"}`}
-              {viewMode === "lab" && `LAB WISE: ${labs.find((l) => l.id === selectedLabId)?.name || "Select Lab"}`}
-              {viewMode === "room" && `ROOM WISE: ${classrooms.find((r) => r.id === selectedRoomId)?.name || "Select Room"}`}
-              {viewMode === "faculty" && `FACULTY WISE: ${teachers.find((t) => t.id === selectedTeacherId)?.profiles?.full_name || "Faculty"}`}
+              {viewMode === "lab" && `LAB WISE: ${labs.find((l: any) => l.id === selectedLabId)?.name || "Select Lab"}`}
+              {viewMode === "room" && `ROOM WISE: ${classrooms.find((r: any) => r.id === selectedRoomId)?.name || "Select Room"}`}
+              {viewMode === "faculty" && `FACULTY WISE: ${effectiveTeachers.find((t: any) => t.id === selectedTeacherId)?.profiles?.full_name || effectiveTeachers.find((t: any) => t.id === selectedTeacherId)?.name || "Faculty"}`}
             </div>
             {viewMode === "faculty" && (
               <Badge className="bg-indigo-900/60 border border-indigo-700 text-indigo-200 text-xs font-mono">
@@ -926,7 +1116,7 @@ export function AdminTimetableView({
                 <thead>
                   <tr className="bg-slate-950 border-b border-slate-800 text-slate-400">
                     <th className="p-3 w-28 font-semibold border-r border-slate-800 text-center">Day</th>
-                    {slots.map((s) => (
+                    {effectiveSlots.map((s: any) => (
                       <th
                         key={s.id}
                         className={`p-3 min-w-[130px] font-semibold text-center border-r border-slate-800 ${
@@ -947,11 +1137,11 @@ export function AdminTimetableView({
                       <td className="p-3 font-semibold uppercase font-mono text-[11px] text-slate-300 border-r border-slate-800 text-center bg-slate-950/60">
                         {day}
                       </td>
-                      {slots.map((s) => {
+                      {effectiveSlots.map((s: any) => {
                         if (s.is_break) {
                           return (
                             <td
-                              key={s.id}
+                              key={s.id || s.slot_number}
                               className="p-2 text-center border-r border-slate-800 bg-amber-950/15 text-amber-400/70 font-mono text-[10px]"
                             >
                               BREAK
@@ -963,7 +1153,7 @@ export function AdminTimetableView({
                         if (cellEntries.length === 0) {
                           return (
                             <td
-                              key={s.id}
+                              key={s.id || s.slot_number}
                               className="p-2 text-center border-r border-slate-800 text-slate-600 font-mono text-xs"
                             >
                               —
@@ -972,7 +1162,7 @@ export function AdminTimetableView({
                         }
 
                         return (
-                          <td key={s.id} className="p-2.5 border-r border-slate-800 bg-slate-950/40">
+                          <td key={s.id || s.slot_number} className="p-2.5 border-r border-slate-800 bg-slate-950/40">
                             {cellEntries.map((entry, idx) => (
                               <div key={idx} className="space-y-0.5">
                                 <div className="font-semibold text-slate-100 flex items-center justify-between">
@@ -985,7 +1175,7 @@ export function AdminTimetableView({
                                 </div>
                                 <div className="text-[11px] text-slate-300 truncate">
                                   {viewMode === "faculty"
-                                    ? entry.timetables?.sections?.name || "Class"
+                                    ? entry.timetables?.sections?.name || entry.class_sections?.name || "Class"
                                     : entry.teachers?.profiles?.full_name || "Faculty"}
                                 </div>
                                 <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
