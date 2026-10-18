@@ -12,6 +12,7 @@ import {
   TimetableSlot,
   RoomResource,
 } from "@/lib/timetable/generator";
+import { runOrToolsSolver, SolverPayload } from "@/lib/timetable/pythonBridge";
 import { revalidatePath } from "next/cache";
 
 export type ActionResponse<T = unknown> = {
@@ -257,23 +258,74 @@ export async function autoGenerateTimetableAction(params: {
       slot_number: b.slot_number,
     }));
 
-    // 7. Run constraint-based generation algorithm
-    const genResult = generateTimetableSchedule({
-      timetableId: params.timetableId,
-      slots: slots as TimetableSlot[],
-      workingDays: params.workingDays,
-      allocations: requirements,
-      rooms: availableRooms,
-      existingTeacherBusySlots: teacherBusyList,
-      existingRoomBusySlots: roomBusyList,
-      defaultRoomNumber: params.defaultRoomNumber || (availableRooms.length > 0 ? availableRooms[0].room_number : "Room-101"),
-    });
+    // 7. Run OR-Tools CP-SAT constraint-based generation engine
+    let scheduledEntries: any[] = [];
+    let unassignedCount = 0;
+    let solverStatus = "OPTIMAL";
 
-    // 8. Clear old draft entries and insert generated schedule
-    await supabase.from("timetable_entries").delete().eq("timetable_id", params.timetableId);
+    const solverPayload: SolverPayload = {
+      sections: [{ id: timetable.section_id, name: "Selected Section" }],
+      slots: (slots || []).map((s: any) => ({
+        slot_number: s.slot_number,
+        is_break: s.is_break,
+      })),
+      rooms: availableRooms.map((r) => ({
+        id: r.id,
+        room_number: r.room_number,
+        type: r.type,
+        is_available: r.is_available,
+      })),
+      working_days: params.workingDays,
+      allocations: requirements.map((a) => ({
+        section_id: timetable.section_id,
+        subject_id: a.subject_id,
+        subject_name: a.subject_name,
+        subject_code: a.subject_code,
+        subject_type: (a.subject_type === "practical" ? "practical" : "theory") as "theory" | "practical",
+        teacher_id: a.teacher_id,
+        teacher_name: a.teacher_name,
+        weekly_hours: a.weekly_periods,
+        batch_group: a.batch_group,
+      })),
+      existing_busy: {
+        teachers: teacherBusyList,
+        rooms: roomBusyList,
+      },
+      preferences: {
+        max_theory_per_day: 1,
+        allow_consecutive_theory: false,
+      },
+    };
 
-    if (genResult.entries.length > 0) {
-      const entriesToInsert = genResult.entries.map((e) => ({
+    const pyResult = await runOrToolsSolver(solverPayload);
+
+    if (pyResult.status === "OPTIMAL" || pyResult.status === "FEASIBLE") {
+      scheduledEntries = (pyResult.entries || []).map((e) => ({
+        institution_id: caller.institutionId,
+        timetable_id: params.timetableId,
+        day_of_week: e.day_of_week as TimetableDay,
+        slot_number: e.slot_number,
+        subject_id: e.subject_id,
+        teacher_id: e.teacher_id,
+        room_id: e.room_id || null,
+        room_number: e.room_number,
+        batch_group: e.batch_group || null,
+      }));
+    } else {
+      // If CP-SAT reports INFEASIBLE, fallback to TypeScript heuristic with diagnostics
+      solverStatus = pyResult.status;
+      const genResult = generateTimetableSchedule({
+        timetableId: params.timetableId,
+        slots: slots as TimetableSlot[],
+        workingDays: params.workingDays,
+        allocations: requirements,
+        rooms: availableRooms,
+        existingTeacherBusySlots: teacherBusyList,
+        existingRoomBusySlots: roomBusyList,
+        defaultRoomNumber: params.defaultRoomNumber || (availableRooms.length > 0 ? availableRooms[0].room_number : "Room-101"),
+      });
+
+      scheduledEntries = genResult.entries.map((e) => ({
         institution_id: caller.institutionId,
         timetable_id: e.timetable_id,
         day_of_week: e.day_of_week,
@@ -284,8 +336,14 @@ export async function autoGenerateTimetableAction(params: {
         room_number: e.room_number,
         batch_group: e.batch_group || null,
       }));
+      unassignedCount = genResult.unassignedSubjects.length;
+    }
 
-      const { error: insErr } = await supabase.from("timetable_entries").insert(entriesToInsert);
+    // 8. Clear old draft entries and insert generated schedule
+    await supabase.from("timetable_entries").delete().eq("timetable_id", params.timetableId);
+
+    if (scheduledEntries.length > 0) {
+      const { error: insErr } = await supabase.from("timetable_entries").insert(scheduledEntries);
       if (insErr) {
         return { success: false, error: `Failed to save generated entries: ${insErr.message}` };
       }
@@ -295,11 +353,9 @@ export async function autoGenerateTimetableAction(params: {
     return {
       success: true,
       data: {
-        generatedCount: genResult.entries.length,
-        unassignedCount: genResult.unassignedSubjects.length,
-        conflicts: genResult.unassignedSubjects.map(
-          (u) => `${u.subject_code} (${u.subject_name}): ${u.reason}`
-        ),
+        generatedCount: scheduledEntries.length,
+        unassignedCount,
+        conflicts: [],
       },
     };
   } catch (err: any) {
@@ -842,23 +898,52 @@ export async function generateDepartmentTimetableAction(params: {
         batch_group: a.subjects?.type === "practical" ? "G1" : null,
       }));
 
-      // Run generator with current global busy sets
-      const genResult = generateTimetableSchedule({
-        timetableId,
-        slots: slots as TimetableSlot[],
-        workingDays: params.workingDays,
-        allocations: requirements,
-        rooms: availableRooms,
-        existingTeacherBusySlots: departmentTeacherBusy,
-        existingRoomBusySlots: departmentRoomBusy,
-        defaultRoomNumber: availableRooms[0]?.room_number || "B-110",
-      });
+      // Run OR-Tools CP-SAT solver with shared cross-section busy sets
+      const solverPayload: SolverPayload = {
+        sections: [{ id: sec.id, name: sec.name }],
+        slots: (slots || []).map((s: any) => ({
+          slot_number: s.slot_number,
+          is_break: s.is_break,
+        })),
+        rooms: availableRooms.map((r) => ({
+          id: r.id,
+          room_number: r.room_number,
+          type: r.type,
+          is_available: r.is_available,
+        })),
+        working_days: params.workingDays,
+        allocations: requirements.map((a) => ({
+          section_id: sec.id,
+          subject_id: a.subject_id,
+          subject_name: a.subject_name,
+          subject_code: a.subject_code,
+          subject_type: (a.subject_type === "practical" ? "practical" : "theory") as "theory" | "practical",
+          teacher_id: a.teacher_id,
+          teacher_name: a.teacher_name,
+          weekly_hours: a.weekly_periods,
+          batch_group: a.batch_group,
+        })),
+        existing_busy: {
+          teachers: departmentTeacherBusy,
+          rooms: departmentRoomBusy,
+        },
+        preferences: {
+          max_theory_per_day: 1,
+          allow_consecutive_theory: false,
+        },
+      };
 
-      // Clear existing entries for this draft
-      await supabase.from("timetable_entries").delete().eq("timetable_id", timetableId);
+      const pyResult = await runOrToolsSolver(solverPayload);
 
-      if (genResult.entries.length > 0) {
-        const entriesToInsert = genResult.entries.map((e) => ({
+      let entriesToInsert: any[] = [];
+      let isSuccess = false;
+      let periodsScheduled = 0;
+      let unassignedCount = 0;
+      let sectionError: string | undefined = undefined;
+
+      if (pyResult.status === "OPTIMAL" || pyResult.status === "FEASIBLE") {
+        isSuccess = true;
+        entriesToInsert = (pyResult.entries || []).map((e) => ({
           institution_id: institutionId,
           timetable_id: timetableId,
           day_of_week: e.day_of_week,
@@ -869,11 +954,46 @@ export async function generateDepartmentTimetableAction(params: {
           room_number: e.room_number,
           batch_group: e.batch_group || null,
         }));
+        periodsScheduled = entriesToInsert.length;
+      } else {
+        // Fallback to TS heuristic if CP-SAT model is over-constrained
+        const genResult = generateTimetableSchedule({
+          timetableId,
+          slots: slots as TimetableSlot[],
+          workingDays: params.workingDays,
+          allocations: requirements,
+          rooms: availableRooms,
+          existingTeacherBusySlots: departmentTeacherBusy,
+          existingRoomBusySlots: departmentRoomBusy,
+          defaultRoomNumber: availableRooms[0]?.room_number || "B-110",
+        });
 
+        isSuccess = genResult.success;
+        periodsScheduled = genResult.entries.length;
+        unassignedCount = genResult.unassignedSubjects.length;
+        sectionError = genResult.unassignedSubjects.map((u) => `${u.subject_code}: ${u.reason}`).join("; ");
+
+        entriesToInsert = genResult.entries.map((e) => ({
+          institution_id: institutionId,
+          timetable_id: timetableId,
+          day_of_week: e.day_of_week,
+          slot_number: e.slot_number,
+          subject_id: e.subject_id,
+          teacher_id: e.teacher_id,
+          room_id: e.room_id || null,
+          room_number: e.room_number,
+          batch_group: e.batch_group || null,
+        }));
+      }
+
+      // Clear existing entries for this draft
+      await supabase.from("timetable_entries").delete().eq("timetable_id", timetableId);
+
+      if (entriesToInsert.length > 0) {
         await supabase.from("timetable_entries").insert(entriesToInsert);
 
         // Accumulate newly scheduled sessions into the department-wide busy registries
-        genResult.entries.forEach((e) => {
+        entriesToInsert.forEach((e) => {
           departmentTeacherBusy.push({
             teacher_id: e.teacher_id,
             day: e.day_of_week,
@@ -890,7 +1010,7 @@ export async function generateDepartmentTimetableAction(params: {
         });
       }
 
-      if (genResult.success) {
+      if (isSuccess) {
         successfulCount++;
         sectionReports.push({
           sectionId: sec.id,
@@ -898,7 +1018,7 @@ export async function generateDepartmentTimetableAction(params: {
           courseCode: courseObj.code,
           semesterNumber: semObj.semester_number,
           success: true,
-          periodsScheduled: genResult.entries.length,
+          periodsScheduled,
           unassignedCount: 0,
         });
       } else {
@@ -909,9 +1029,9 @@ export async function generateDepartmentTimetableAction(params: {
           courseCode: courseObj.code,
           semesterNumber: semObj.semester_number,
           success: false,
-          periodsScheduled: genResult.entries.length,
-          unassignedCount: genResult.unassignedSubjects.length,
-          error: genResult.unassignedSubjects.map((u) => `${u.subject_code}: ${u.reason}`).join("; "),
+          periodsScheduled,
+          unassignedCount,
+          error: sectionError || `CP-SAT solver returned ${pyResult.status}`,
         });
       }
     }
