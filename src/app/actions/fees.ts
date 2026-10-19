@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireRole } from "@/lib/auth/server";
+import { requireRole, requireAccountsAccess, requireAuth, AuthorizationError } from "@/lib/auth/server";
 import { revalidatePath } from "next/cache";
 
 export type FeePaymentMethod = "cash" | "cheque" | "bank_transfer" | "upi" | "demand_draft";
@@ -114,7 +114,7 @@ export async function recordOfflinePaymentAction(
   input: RecordOfflinePaymentInput
 ): Promise<FeeActionResponse> {
   try {
-    const caller = await requireRole(["cashier", "admin"]);
+    const caller = await requireAccountsAccess();
 
     if (!input.feeId || !input.studentId) {
       return { success: false, error: "Fee ID and Student ID are required." };
@@ -192,7 +192,7 @@ export async function reversePaymentAction(
   input: ReversePaymentInput
 ): Promise<FeeActionResponse> {
   try {
-    const caller = await requireRole(["cashier", "admin"]);
+    const caller = await requireAccountsAccess();
 
     if (!input.originalPaymentId || !input.feeId || !input.studentId) {
       return { success: false, error: "Original payment, Fee ID, and Student ID are required." };
@@ -464,7 +464,10 @@ export async function getPaymentReceiptAction(
   paymentId: string
 ): Promise<FeeReceiptResponse> {
   try {
-    const caller = await requireRole(["student", "cashier", "admin"]);
+    const caller = await requireAuth();
+    if (caller.role !== "student" && caller.role !== "admin" && caller.role !== "cashier" && !caller.canAccessAccounts) {
+      throw new AuthorizationError("Access denied: Not authorized to view receipts.", "FORBIDDEN");
+    }
 
     if (!paymentId || typeof paymentId !== "string" || !paymentId.trim()) {
       return { success: false, error: "Payment identifier is required." };
