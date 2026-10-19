@@ -150,25 +150,14 @@ export function isDemoFallbackSection(section: {
 }): boolean {
   const code = (section.course_code || "").toUpperCase();
   const sem = section.semester_number;
-  const name = (section.name || "").toUpperCase();
 
-  // Working real sections that MUST be preserved:
-  // - CSE S5 A and B
-  // - CSE S3 A and B
-  // - CSE S1 A and B
-  // - CSE S7 B
-  if (code === "CSE" || code.includes("COMPUTER")) {
-    if ((sem === 1 || sem === 3 || sem === 5) && (name.includes("A") || name.includes("B"))) {
-      return false;
-    }
-    if (sem === 7 && name.includes("B")) {
-      return false;
-    }
+  // Phase 17: IT S1 Section A is kept labelled as incomplete / demo fallback until joint-class mapping is resolved.
+  if ((code === "IT" || code.includes("INFORMATION")) && sem === 1) {
+    return true;
   }
 
-  // All other listed sections receive the demo fallback:
-  // AI/ML S1 A/B, CSE S7 A, CS/DS S1/S3/S5 A, IT S1/S3/S5/S7 A
-  return true;
+  // All other configured sections now have official curriculum allocations and real timetables
+  return false;
 }
 
 /**
