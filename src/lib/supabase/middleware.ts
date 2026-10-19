@@ -72,10 +72,10 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // 2. Fetch authenticated profile role from public.profiles
+    // 2. Fetch authenticated profile role and permissions from public.profiles
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, status")
+      .select("role, status, must_change_password, can_access_accounts")
       .eq("id", user.id)
       .single();
 
@@ -85,7 +85,15 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
+    // First-time password change enforcement: block dashboard until updated
+    if (profile.must_change_password) {
+      const resetUrl = new URL("/reset-password", request.url);
+      resetUrl.searchParams.set("required", "true");
+      return NextResponse.redirect(resetUrl);
+    }
+
     const userRole = profile.role as UserRole;
+    const canAccessAccounts = Boolean(profile.can_access_accounts);
     const allowedRoles = getAllowedRolesForPath(pathname);
 
     // If accessing root /dashboard, redirect to role home
@@ -94,8 +102,11 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL(home, request.url));
     }
 
-    // If route requires specific role membership, verify permission
-    if (allowedRoles && !allowedRoles.includes(userRole)) {
+    // Check path authorization including explicit accounts access
+    const isCashierRoute = pathname === "/dashboard/cashier" || pathname.startsWith("/dashboard/cashier/");
+    if (isCashierRoute && canAccessAccounts) {
+      // Permitted via explicit accounts permission
+    } else if (allowedRoles && !allowedRoles.includes(userRole)) {
       const home = getRoleHomeDashboard(userRole);
       return NextResponse.redirect(new URL(home, request.url));
     }
@@ -105,11 +116,17 @@ export async function updateSession(request: NextRequest) {
   if (pathname === "/login" && user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, status")
+      .select("role, status, must_change_password, can_access_accounts")
       .eq("id", user.id)
       .single();
 
     if (profile && profile.status === "active") {
+      if (profile.must_change_password) {
+        const resetUrl = new URL("/reset-password", request.url);
+        resetUrl.searchParams.set("required", "true");
+        return NextResponse.redirect(resetUrl);
+      }
+
       const redirectTo = request.nextUrl.searchParams.get("redirectTo");
       if (redirectTo && redirectTo.startsWith("/dashboard")) {
         return NextResponse.redirect(new URL(redirectTo, request.url));
