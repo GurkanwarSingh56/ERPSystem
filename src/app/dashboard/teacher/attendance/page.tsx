@@ -4,18 +4,24 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, ArrowLeft, Clock, History, AlertCircle } from "lucide-react";
+import { Calendar, ArrowLeft, Clock, History, AlertCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { getTeacherAllocationsAction } from "@/app/actions/attendance";
+import { TeacherAttendanceView } from "@/components/dashboard/TeacherAttendanceView";
 
 export const metadata = {
   title: "Faculty Daily Attendance — College ERP",
 };
 
 export default async function TeacherAttendancePage() {
-  const user = await requireRole(["teacher", "admin"]);
+  const user = await requireRole(["teacher", "admin", "principal", "hod"]);
   const supabase = await createClient();
 
-  // Query recent attendance sessions recorded by this teacher
+  // 1. Fetch authorized class/subject allocations for this faculty/admin
+  const allocRes = await getTeacherAllocationsAction();
+  const allocations = allocRes.success && allocRes.data ? allocRes.data : [];
+
+  // 2. Query recent attendance sessions recorded by this user
   const { data: recentSessions, error } = await supabase
     .from("attendance")
     .select(`
@@ -25,7 +31,7 @@ export default async function TeacherAttendancePage() {
       status,
       remarks,
       student_id,
-      students (
+      students!fk_attendance_student_section (
         roll_number,
         profiles (full_name)
       ),
@@ -39,6 +45,7 @@ export default async function TeacherAttendancePage() {
     `)
     .eq("marked_by", user.userId)
     .order("date", { ascending: false })
+    .order("period_number", { ascending: true })
     .limit(20);
 
   const sessions = recentSessions || [];
@@ -50,21 +57,21 @@ export default async function TeacherAttendancePage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <Link href="/dashboard/teacher">
+              <Link href={user.role === "admin" ? "/dashboard/admin" : "/dashboard/teacher"}>
                 <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white p-2">
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
               <Calendar className="w-6 h-6 text-emerald-400" />
-              <h1 className="text-2xl font-bold tracking-tight text-white">Daily Attendance Register</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-white">Daily Attendance Portal</h1>
             </div>
             <p className="text-slate-400 text-xs pt-1">
-              Mark period-wise student attendance and view tamper-evident audit history.
+              Mark period-wise student attendance, edit past roll calls, and maintain a verified audit trail.
             </p>
           </div>
         </div>
 
-        {/* Informational Guidance */}
+        {/* Informational Guidance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="bg-slate-900/80 border-slate-800">
             <CardHeader className="pb-2">
@@ -91,11 +98,27 @@ export default async function TeacherAttendancePage() {
               <CardTitle className="text-xs font-mono uppercase text-slate-400">Instructor Scope</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-indigo-400">Assigned Cohorts</div>
+              <div className="text-2xl font-bold text-indigo-400">
+                {allocations.length} Assigned {allocations.length === 1 ? "Cohort" : "Cohorts"}
+              </div>
               <p className="text-xs text-slate-400 pt-1">RLS restricts roll calls to your authorized subjects</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Interactive Roll Call Portal */}
+        {allocations.length === 0 ? (
+          <Card className="bg-slate-900/80 border-slate-800 p-8 text-center">
+            <AlertCircle className="w-10 h-10 mx-auto text-amber-400 mb-3" />
+            <h3 className="text-base font-semibold text-white">No Teaching Allocations Found</h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+              You are not currently assigned to teach any subjects for active sections.
+              Please contact the campus academic administrator or department HOD to assign curricular allocations.
+            </p>
+          </Card>
+        ) : (
+          <TeacherAttendanceView initialAllocations={allocations} user={user} />
+        )}
 
         {/* Sessions Ledger */}
         <Card className="bg-slate-900/80 border-slate-800">
@@ -142,7 +165,15 @@ export default async function TeacherAttendancePage() {
                         <td className="py-3 px-4 font-sans text-slate-200">
                           {s.students?.profiles?.full_name || "Student"} ({s.students?.roll_number || "—"})
                         </td>
-                        <td className="py-3 px-4 uppercase text-emerald-400 font-bold">{s.status}</td>
+                        <td className="py-3 px-4 uppercase font-bold">
+                          {s.status === "present" ? (
+                            <span className="text-emerald-400">Present</span>
+                          ) : s.status === "leave" ? (
+                            <span className="text-amber-400">Leave</span>
+                          ) : (
+                            <span className="text-rose-400">Absent</span>
+                          )}
+                        </td>
                         <td className="py-3 px-4 text-slate-400 font-sans">{s.remarks || "—"}</td>
                       </tr>
                     ))}
