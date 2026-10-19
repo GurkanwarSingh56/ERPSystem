@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -33,16 +34,20 @@ export default async function PrincipalDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Attendance & Reports</CardTitle>
-              <BarChart3 className="w-4 h-4 text-indigo-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">Consolidated View</div>
-              <p className="text-xs text-slate-400 pt-1">Real-time attendance summaries across all curriculum branches</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/admin/attendance" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Attendance & Reports
+                </CardTitle>
+                <BarChart3 className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Consolidated View</div>
+                <p className="text-xs text-slate-400 pt-1">Real-time attendance summaries across all curriculum branches →</p>
+              </CardContent>
+            </Card>
+          </Link>
 
           <Card className="bg-slate-900/80 border-slate-800">
             <CardHeader className="flex flex-row items-center justify-between pb-2">

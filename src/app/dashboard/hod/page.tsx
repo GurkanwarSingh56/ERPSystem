@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -33,16 +34,20 @@ export default async function HodDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900/80 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-300">Department Attendance</CardTitle>
-              <CalendarCheck className="w-4 h-4 text-emerald-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">Session Auditing</div>
-              <p className="text-xs text-slate-400 pt-1">View department attendance sheets and modifications</p>
-            </CardContent>
-          </Card>
+          <Link href="/dashboard/admin/attendance" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-emerald-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Department Attendance
+                </CardTitle>
+                <CalendarCheck className="w-4 h-4 text-emerald-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Session Auditing</div>
+                <p className="text-xs text-slate-400 pt-1">View department attendance sheets, defaulters & modifications →</p>
+              </CardContent>
+            </Card>
+          </Link>
 
           <Card className="bg-slate-900/80 border-slate-800">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
