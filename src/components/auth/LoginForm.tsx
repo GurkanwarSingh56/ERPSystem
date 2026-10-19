@@ -63,19 +63,27 @@ export function LoginForm() {
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-slate-400" /> Email Address
+              <Mail className="w-3.5 h-3.5 text-slate-400" /> Login ID or Email Address
             </label>
             <Input
-              type="email"
-              name="email"
-              placeholder="e.g. faculty@college.edu"
+              type="text"
+              name="identifier"
+              placeholder="e.g. FAC123, 24CSE002, or admin@college.local"
               required
+              autoCapitalize="none"
+              autoCorrect="off"
               disabled={isPending}
-              className="bg-slate-950/60 border-slate-800 focus-visible:ring-indigo-500 text-slate-100"
+              className="bg-slate-950/60 border-slate-800 focus-visible:ring-indigo-500 text-slate-100 font-mono text-sm"
             />
+            {state?.fieldErrors?.identifier && (
+              <p className="text-xs text-red-400">{state.fieldErrors.identifier}</p>
+            )}
             {state?.fieldErrors?.email && (
               <p className="text-xs text-red-400">{state.fieldErrors.email}</p>
             )}
+            <p className="text-[11px] text-slate-500">
+              Teachers: Employee ID &bull; Students: Roll No &bull; Staff: Login ID or Email
+            </p>
           </div>
 
           <div className="space-y-1.5">
