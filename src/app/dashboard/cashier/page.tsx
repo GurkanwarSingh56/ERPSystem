@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth/server";
+import { requireAccountsAccess } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 export default async function CashierDashboardPage() {
-  const user = await requireRole(["cashier", "admin"]);
+  const user = await requireAccountsAccess();
   const supabase = await createClient();
 
   // 1. Fetch fee summaries for institution metrics
