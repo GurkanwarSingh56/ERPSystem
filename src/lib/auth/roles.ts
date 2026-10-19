@@ -11,6 +11,9 @@ export interface UserProfile {
   phone: string | null;
   status: UserStatus;
   avatar_url: string | null;
+  login_id?: string | null;
+  must_change_password?: boolean;
+  can_access_accounts?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -22,6 +25,9 @@ export interface AuthContextUser {
   email: string;
   fullName: string;
   isActive: boolean;
+  loginId?: string | null;
+  mustChangePassword?: boolean;
+  canAccessAccounts?: boolean;
 }
 
 export const ALL_ROLES: readonly UserRole[] = [
