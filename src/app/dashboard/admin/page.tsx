@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Shield, Users, BookOpen, Settings, GraduationCap, CreditCard, Calendar, Database } from "lucide-react";
+import { Shield, Users, BookOpen, Settings, GraduationCap, CreditCard, Calendar, Database, CalendarCheck } from "lucide-react";
 
 export const metadata = {
   title: "Admin Dashboard — College ERP",
@@ -54,6 +54,21 @@ export default async function AdminDashboardPage() {
           </Link>
 
 
+          <Link href="/dashboard/admin/attendance" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-emerald-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Attendance Portal
+                </CardTitle>
+                <CalendarCheck className="w-4 h-4 text-emerald-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Attendance</div>
+                <p className="text-xs text-slate-400 pt-1">Session audits, shortage threshold alerts & campus summaries</p>
+              </CardContent>
+            </Card>
+          </Link>
+
           <Link href="/dashboard/admin/fees" className="block group">
             <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -95,6 +110,21 @@ export default async function AdminDashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-white">Smart Timetable</div>
                 <p className="text-xs text-slate-400 pt-1">Generate, validate, publish schedules & resolve conflicts →</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/admin/accounts" className="block group">
+            <Card className="bg-slate-900/80 border-slate-800 hover:border-indigo-500/50 transition-colors h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  Account Governance
+                </CardTitle>
+                <Shield className="w-4 h-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">Accounts & Access</div>
+                <p className="text-xs text-slate-400 pt-1">Provision Login IDs, credential resets, and accounts access delegations →</p>
               </CardContent>
             </Card>
           </Link>
