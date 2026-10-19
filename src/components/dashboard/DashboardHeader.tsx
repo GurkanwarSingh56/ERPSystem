@@ -1,8 +1,9 @@
 import { signOutAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, LogOut, UserCircle } from "lucide-react";
+import { Building2, LogOut, UserCircle, Landmark } from "lucide-react";
 import { AuthContextUser } from "@/lib/auth/roles";
+import Link from "next/link";
 
 export function DashboardHeader({ user }: { user: AuthContextUser }) {
   const roleBadgeVariant: Record<string, "default" | "secondary" | "destructive" | "success" | "warning"> = {
@@ -31,13 +32,29 @@ export function DashboardHeader({ user }: { user: AuthContextUser }) {
 
         <div className="flex items-center space-x-4">
           <div className="hidden sm:flex flex-col text-right">
-            <span className="text-sm font-medium text-slate-200">{user.fullName || user.email}</span>
+            <div className="flex items-center gap-1.5 justify-end">
+              <span className="text-sm font-medium text-slate-200">{user.fullName || user.email}</span>
+              {user.loginId && (
+                <span className="text-[10px] bg-slate-800 text-indigo-300 font-mono px-1.5 py-0.2 rounded border border-slate-700">
+                  {user.loginId}
+                </span>
+              )}
+            </div>
             <span className="text-xs text-slate-400 font-mono">{user.email}</span>
           </div>
 
           <Badge variant={roleBadgeVariant[user.role] || "default"} className="uppercase font-mono text-[10px] tracking-wider px-2.5 py-0.5">
             {user.role}
           </Badge>
+
+          {user.canAccessAccounts && user.role !== "cashier" && user.role !== "admin" && (
+            <Link
+              href="/dashboard/cashier"
+              className="hidden md:inline-flex items-center gap-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-md transition-colors font-medium"
+            >
+              <Landmark className="w-3.5 h-3.5" /> Accounts Portal
+            </Link>
+          )}
 
           <form action={signOutAction}>
             <Button
