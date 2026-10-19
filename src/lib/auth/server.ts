@@ -28,7 +28,7 @@ export async function getAuthenticatedProfile(): Promise<AuthContextUser | null>
   // Fetch verified profile from PostgreSQL public.profiles
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, institution_id, role, status, email, full_name")
+    .select("id, institution_id, role, status, email, full_name, login_id, must_change_password, can_access_accounts")
     .eq("id", user.id)
     .single();
 
@@ -43,6 +43,9 @@ export async function getAuthenticatedProfile(): Promise<AuthContextUser | null>
     email: profile.email,
     fullName: profile.full_name,
     isActive: profile.status === "active",
+    loginId: profile.login_id,
+    mustChangePassword: Boolean(profile.must_change_password),
+    canAccessAccounts: Boolean(profile.can_access_accounts),
   };
 }
 
@@ -74,6 +77,21 @@ export async function requireRole(allowedRoles: readonly UserRole[]): Promise<Au
     );
   }
   return user;
+}
+
+/**
+ * Enforces Accounts / Cashier portal access.
+ * Permitted for administrators, cashiers, and any faculty/staff explicitly granted accounts access.
+ */
+export async function requireAccountsAccess(): Promise<AuthContextUser> {
+  const user = await requireAuth();
+  if (user.role === "admin" || user.role === "cashier" || user.canAccessAccounts) {
+    return user;
+  }
+  throw new AuthorizationError(
+    "Access denied: Cashier or Accounts authorization required.",
+    "FORBIDDEN"
+  );
 }
 
 /**
