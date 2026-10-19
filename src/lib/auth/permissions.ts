@@ -41,7 +41,10 @@ export function getAllowedRolesForPath(pathname: string): readonly UserRole[] | 
   return null;
 }
 
-export function isPathAuthorizedForRole(pathname: string, role: UserRole): boolean {
+export function isPathAuthorizedForRole(pathname: string, role: UserRole, canAccessAccounts?: boolean): boolean {
+  if (canAccessAccounts && (pathname === "/dashboard/cashier" || pathname.startsWith("/dashboard/cashier/"))) {
+    return true;
+  }
   const allowed = getAllowedRolesForPath(pathname);
   if (!allowed) {
     // If not a role-specific dashboard path, allow access to common dashboard pages
