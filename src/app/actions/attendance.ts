@@ -155,8 +155,8 @@ export async function recordAttendanceAction(
       };
     }
 
-    // 4. Verify teacher allocation if caller is a teacher
-    if (caller && caller.role === "teacher") {
+    // 4. Verify teacher/faculty allocation if caller is a teacher or HOD
+    if (caller && (caller.role === "teacher" || caller.role === "hod")) {
       const { data: allocation, error: allocErr } = await supabase
         .from("teacher_subjects")
         .select("id")
