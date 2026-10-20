@@ -50,3 +50,4 @@ scripts/debug-dept-schedule.ts
 __pycache__/
 *.pyc
 tt.xlsx
+docs/erp-login-roster.csv
