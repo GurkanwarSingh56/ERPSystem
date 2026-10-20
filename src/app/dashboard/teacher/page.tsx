@@ -9,7 +9,7 @@ export const metadata = {
 };
 
 export default async function TeacherDashboardPage() {
-  const user = await requireRole(["teacher", "admin"]);
+  const user = await requireRole(["teacher", "hod", "admin"]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">

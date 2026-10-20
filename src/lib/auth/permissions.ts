@@ -20,7 +20,7 @@ export const ROUTE_PERMISSIONS: readonly RouteRule[] = [
   },
   {
     prefix: "/dashboard/teacher",
-    allowedRoles: ["teacher", "admin"],
+    allowedRoles: ["teacher", "hod", "admin"],
   },
   {
     prefix: "/dashboard/student",
