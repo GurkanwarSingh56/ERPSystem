@@ -348,8 +348,12 @@ export async function provisionAccountsAction(): Promise<ProvisionAccountsRespon
 
       // Determine candidate Login ID based on institutional priority rules
       let candidateId: string | null = null;
-      if (p.role === "teacher" || p.role === "hod" || p.role === "principal") {
-        candidateId = teacherMap.get(p.id)?.trim() || null;
+      if (p.role === "principal") {
+        candidateId = p.login_id?.trim() || "PRINCIPAL";
+      } else if (p.role === "hod") {
+        candidateId = teacherMap.get(p.id)?.trim() || p.login_id?.trim() || "HOD";
+      } else if (p.role === "teacher") {
+        candidateId = teacherMap.get(p.id)?.trim() || p.login_id?.trim() || null;
       } else if (p.role === "student") {
         // Priority rule for students: 1. roll_number -> 2. admission_number
         const sInfo = studentMap.get(p.id);
