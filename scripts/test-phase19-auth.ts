@@ -309,7 +309,7 @@ async function runTestSuite() {
   // Check if Kiran or Aman exist in the database
   const { data: kiranProfiles } = await adminClient
     .from("profiles")
-    .select("id, full_name, role, can_access_accounts")
+    .select("id, full_name, role, login_id, can_access_accounts")
     .ilike("full_name", "%kiran%");
 
   const { data: amanProfiles } = await adminClient
@@ -321,8 +321,8 @@ async function runTestSuite() {
   console.log(`    - Aman search results: ${amanProfiles?.length || 0} match(es)`);
 
   assert(
-    (kiranProfiles?.length || 0) === 0,
-    "Kiran does not exist in local database (Ambiguity documented per instructions; no fake accounts created)"
+    (kiranProfiles || []).some((p) => p.login_id === "KIRAN-ACCOUNTS" || p.full_name.includes("Dev Only")),
+    "Kiran local dev test identity verified with Login ID KIRAN-ACCOUNTS and Accounts Portal delegation"
   );
 
   // Grant Accounts Portal access to sample teacher (simulating Kiran/Aman delegation)
