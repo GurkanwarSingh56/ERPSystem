@@ -278,32 +278,58 @@ export async function getTeacherAllocationsAction(): Promise<ActionResponse<Teac
 
     let allocations: TeacherAllocationItem[] = [];
 
+    const selectFields = `
+      id,
+      section_id,
+      subject_id,
+      course_id,
+      semester_id,
+      sections!fk_teacher_sub_section (id, name),
+      subjects!fk_teacher_sub_subject (id, name, code)
+    `;
+
+    const resolveMetadata = async (items: any[]) => {
+      const cIds = Array.from(new Set(items.map((r) => r.course_id).filter(Boolean)));
+      const sIds = Array.from(new Set(items.map((r) => r.semester_id).filter(Boolean)));
+      const cMap = new Map<string, any>();
+      const sMap = new Map<string, any>();
+      if (cIds.length > 0) {
+        const { data: cRows } = await supabase
+          .from("courses")
+          .select("id, code, name, department_id")
+          .in("id", cIds);
+        (cRows || []).forEach((c: any) => cMap.set(c.id, c));
+      }
+      if (sIds.length > 0) {
+        const { data: sRows } = await supabase
+          .from("semesters")
+          .select("id, semester_number")
+          .in("id", sIds);
+        (sRows || []).forEach((s: any) => sMap.set(s.id, s));
+      }
+      return { cMap, sMap };
+    };
+
     if (caller?.role === "admin" || caller?.role === "principal") {
       // Return all active section-subject combinations
       const { data: rows, error } = await supabase
         .from("teacher_subjects")
-        .select(`
-          id,
-          section_id,
-          subject_id,
-          course_id,
-          semester_id,
-          sections (id, name),
-          subjects (id, name, code),
-          courses (id, code, name),
-          semesters (id, semester_number)
-        `)
+        .select(selectFields)
         .eq("institution_id", institutionId);
 
       if (error) {
         return { success: false, error: `Failed to fetch allocations: ${error.message}` };
       }
 
+      const { cMap, sMap } = await resolveMetadata(rows || []);
+
       // Deduplicate by section_id + subject_id
       const map = new Map<string, TeacherAllocationItem>();
       (rows || []).forEach((r: any) => {
         const key = `${r.section_id}_${r.subject_id}`;
         if (!map.has(key) && r.sections && r.subjects) {
+          const c = cMap.get(r.course_id);
+          const s = sMap.get(r.semester_id);
           map.set(key, {
             id: r.id,
             sectionId: r.section_id,
@@ -312,10 +338,10 @@ export async function getTeacherAllocationsAction(): Promise<ActionResponse<Teac
             subjectName: r.subjects.name,
             subjectCode: r.subjects.code,
             courseId: r.course_id,
-            courseCode: r.courses?.code || "",
-            courseName: r.courses?.name || "",
+            courseCode: c?.code || "",
+            courseName: c?.name || "",
             semesterId: r.semester_id,
-            semesterNumber: r.semesters?.semester_number || 1,
+            semesterNumber: s?.semester_number || 1,
           });
         }
       });
@@ -331,26 +357,20 @@ export async function getTeacherAllocationsAction(): Promise<ActionResponse<Teac
       const deptId = teacherRow?.department_id;
       const { data: rows, error } = await supabase
         .from("teacher_subjects")
-        .select(`
-          id,
-          section_id,
-          subject_id,
-          course_id,
-          semester_id,
-          sections (id, name),
-          subjects (id, name, code),
-          courses (id, code, name, department_id),
-          semesters (id, semester_number)
-        `)
+        .select(selectFields)
         .eq("institution_id", institutionId);
 
       if (error) {
         return { success: false, error: `Failed to fetch allocations: ${error.message}` };
       }
 
+      const { cMap, sMap } = await resolveMetadata(rows || []);
+
       const map = new Map<string, TeacherAllocationItem>();
       (rows || []).forEach((r: any) => {
-        if (deptId && r.courses?.department_id !== deptId) return;
+        const c = cMap.get(r.course_id);
+        const s = sMap.get(r.semester_id);
+        if (deptId && c?.department_id !== deptId) return;
         const key = `${r.section_id}_${r.subject_id}`;
         if (!map.has(key) && r.sections && r.subjects) {
           map.set(key, {
@@ -361,10 +381,10 @@ export async function getTeacherAllocationsAction(): Promise<ActionResponse<Teac
             subjectName: r.subjects.name,
             subjectCode: r.subjects.code,
             courseId: r.course_id,
-            courseCode: r.courses?.code || "",
-            courseName: r.courses?.name || "",
+            courseCode: c?.code || "",
+            courseName: c?.name || "",
             semesterId: r.semester_id,
-            semesterNumber: r.semesters?.semester_number || 1,
+            semesterNumber: s?.semester_number || 1,
           });
         }
       });
@@ -373,17 +393,7 @@ export async function getTeacherAllocationsAction(): Promise<ActionResponse<Teac
       // Specific to teacher
       const { data: rows, error } = await supabase
         .from("teacher_subjects")
-        .select(`
-          id,
-          section_id,
-          subject_id,
-          course_id,
-          semester_id,
-          sections (id, name),
-          subjects (id, name, code),
-          courses (id, code, name),
-          semesters (id, semester_number)
-        `)
+        .select(selectFields)
         .eq("institution_id", institutionId)
         .eq("teacher_id", markedBy);
 
@@ -391,19 +401,25 @@ export async function getTeacherAllocationsAction(): Promise<ActionResponse<Teac
         return { success: false, error: `Failed to fetch teacher allocations: ${error.message}` };
       }
 
-      allocations = (rows || []).map((r: any) => ({
-        id: r.id,
-        sectionId: r.section_id,
-        sectionName: r.sections?.name || "Section",
-        subjectId: r.subject_id,
-        subjectName: r.subjects?.name || "Subject",
-        subjectCode: r.subjects?.code || "",
-        courseId: r.course_id,
-        courseCode: r.courses?.code || "",
-        courseName: r.courses?.name || "",
-        semesterId: r.semester_id,
-        semesterNumber: r.semesters?.semester_number || 1,
-      }));
+      const { cMap, sMap } = await resolveMetadata(rows || []);
+
+      allocations = (rows || []).map((r: any) => {
+        const c = cMap.get(r.course_id);
+        const s = sMap.get(r.semester_id);
+        return {
+          id: r.id,
+          sectionId: r.section_id,
+          sectionName: r.sections?.name || "Section",
+          subjectId: r.subject_id,
+          subjectName: r.subjects?.name || "Subject",
+          subjectCode: r.subjects?.code || "",
+          courseId: r.course_id,
+          courseCode: c?.code || "",
+          courseName: c?.name || "",
+          semesterId: r.semester_id,
+          semesterNumber: s?.semester_number || 1,
+        };
+      });
     }
 
     return { success: true, data: allocations };

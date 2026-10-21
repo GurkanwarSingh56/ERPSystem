@@ -39,7 +39,7 @@ export default async function TeacherAttendancePage() {
         name,
         code
       ),
-      sections (
+      sections!fk_attendance_section (
         name
       )
     `)
